@@ -90,18 +90,18 @@ The bot is configured through a JSON configuration file. Copy `config-sample.jso
 
 ### Advanced: Multi-Option Polls with Reminders
 
-You can create **polls** where participants vote using emoji reactions, and everyone who voted gets reminded with only the winning option(s). To do this, provide multiple lines after the time. Each line must be in the form:
+You can create **polls** where participants vote using emoji reactions, and everyone who voted gets reminded with only the winning option(s). To do this, put each option on its own line *below* the command line. Each of those lines must be in the form:
 
 ```
 <emoji>: <message>
 ```
 
-If you supply only a single message or the format is invalid, it gracefully falls back to the simple reminder behavior using the default reaction (`:+1:`).
+The line that contains the time is never an option, so leave it empty after the time. If there is no option line, if the command line contains a message, or if one of the option lines is not in the form above, the bot gracefully falls back to the simple reminder behavior using the default reaction (`:+1:`).
 
 Example (three lunch options):
 
 ```
-!yarb 12:30 
+!yarb 12:30
 🍕: Pizza
 🍔: Burger
 🥗: Salad

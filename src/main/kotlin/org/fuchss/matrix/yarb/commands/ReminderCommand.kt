@@ -28,6 +28,27 @@ class ReminderCommand(
     companion object {
         const val COMMAND_NAME = "new"
         private val TIME_REGEX = Regex("^(0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
+
+        /**
+         * Parse the message of a reminder into the options of a poll.
+         *
+         * Options are only read from the lines below the command, so the first line (the one that contains the time) never contains an option.
+         * A message without such option lines -- or with a line that is not structured like "Emoji: Option" -- is used as a plain reminder message.
+         */
+        internal fun parseEmojiToMessage(message: String): Map<String, String> {
+            val lines = message.lines()
+            if (lines.size < 2 || lines.first().isNotBlank()) {
+                return mapOf(TimerManager.DEFAULT_REACTION to message.trim())
+            }
+
+            val optionLines = lines.drop(1).map { it.trim() }.filter { it.isNotBlank() }
+            val options = optionLines.map { it.split(":", limit = 2) }
+            if (options.isEmpty() || options.any { it.size != 2 || it[0].isBlank() || it[1].isBlank() }) {
+                return mapOf(TimerManager.DEFAULT_REACTION to message.trim())
+            }
+
+            return options.associate { it[0].trim() to it[1].trim() }
+        }
     }
 
     override val help: String = "Set a reminder for a specific time."
@@ -125,17 +146,20 @@ class ReminderCommand(
         roomId: RoomId,
         parameters: String
     ): Pair<LocalTime, String>? {
-        val timeXmessage = parameters.split(" ", "\n", limit = 2)
-        if (timeXmessage.size != 2) {
-            matrixBot.room().sendMessage(roomId) { text("Time not found. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
-            return null
-        }
-        if (!TIME_REGEX.matches(timeXmessage[0])) {
+        val timeText = parameters.takeWhile { !it.isWhitespace() }
+        if (!TIME_REGEX.matches(timeText)) {
             matrixBot.room().sendMessage(roomId) { text("Invalid time format. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
             return null
         }
+        // Keep the line structure of the message. Only the lines below the command may contain the options of a poll.
+        val message = parameters.drop(timeText.length).removePrefix(" ")
+        if (message.isBlank()) {
+            matrixBot.room().sendMessage(roomId) { text("Message not found. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
+            return null
+        }
+
         val formatter = DateTimeFormatter.ofPattern("H:mm")
-        val time = LocalTime.parse(timeXmessage[0], formatter).withSecond(0).minusMinutes(config.offsetInMinutes)
+        val time = LocalTime.parse(timeText, formatter).withSecond(0).minusMinutes(config.offsetInMinutes)
         val now = LocalTime.now()
         if (now.isAfter(time)) {
             matrixBot
@@ -148,7 +172,7 @@ class ReminderCommand(
             return null
         }
 
-        return time to timeXmessage[1]
+        return time to message
     }
 
     private fun createReminderMessage(
@@ -162,21 +186,6 @@ class ReminderCommand(
         val header = "I'll remind all people at $time.\n\n"
         val options = emojiToMessage.map { (emoji, message) -> "* Use '$emoji': $message" }.joinToString("\n")
         return header + options
-    }
-
-    private fun parseEmojiToMessage(content: String): Map<String, String> {
-        val lines = content.lines().map { it.trim() }.filter { !it.isBlank() }
-        if (lines.isEmpty()) {
-            return mapOf(TimerManager.DEFAULT_REACTION to content)
-        }
-
-        // Check that lines are structured like "Emoji:Option"
-        val options = lines.map { it.split(":", limit = 2) }
-        if (options.any { it.size != 2 || it[0].isBlank() || it[1].isBlank() }) {
-            return mapOf(TimerManager.DEFAULT_REACTION to content)
-        }
-
-        return options.associate { it[0].trim() to it[1].trim() }
     }
 
     suspend fun handleUserDeleteMessage(
