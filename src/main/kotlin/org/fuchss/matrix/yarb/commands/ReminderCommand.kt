@@ -19,6 +19,7 @@ import org.fuchss.matrix.yarb.Config
 import org.fuchss.matrix.yarb.TimerManager
 import org.fuchss.matrix.yarb.getMessageId
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 class ReminderCommand(
     private val config: Config,
@@ -26,7 +27,7 @@ class ReminderCommand(
 ) : Command() {
     companion object {
         const val COMMAND_NAME = "new"
-        private val TIME_REGEX = Regex("^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
+        private val TIME_REGEX = Regex("^(0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$")
     }
 
     override val help: String = "Set a reminder for a specific time."
@@ -133,8 +134,8 @@ class ReminderCommand(
             matrixBot.room().sendMessage(roomId) { text("Invalid time format. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
             return null
         }
-
-        val time = LocalTime.parse(timeXmessage[0]).withSecond(0).minusMinutes(config.offsetInMinutes)
+        val formatter = DateTimeFormatter.ofPattern("H:mm")
+        val time = LocalTime.parse(timeXmessage[0], formatter).withSecond(0).minusMinutes(config.offsetInMinutes)
         val now = LocalTime.now()
         if (now.isAfter(time)) {
             matrixBot
