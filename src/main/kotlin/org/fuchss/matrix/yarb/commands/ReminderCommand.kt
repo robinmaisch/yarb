@@ -166,7 +166,6 @@ class ReminderCommand(
             return null
         }
 
-
         // Keep the line structure of the message. Only the lines below the command may contain the options of a poll.
         var message = parameters.drop(timeText.length).removePrefix(" ")
         if (message.isBlank()) {
