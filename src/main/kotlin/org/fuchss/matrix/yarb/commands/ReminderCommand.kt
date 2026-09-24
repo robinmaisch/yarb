@@ -125,10 +125,7 @@ class ReminderCommand(
         parameters: String
     ): Pair<LocalTime, String>? {
         val timeXmessage = parameters.split(" ", "\n", limit = 2)
-        if (timeXmessage.size != 2) {
-            matrixBot.room().sendMessage(roomId) { text("Time not found. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
-            return null
-        }
+
         if (!TIME_REGEX.matches(timeXmessage[0])) {
             matrixBot.room().sendMessage(roomId) { text("Invalid time format. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
             return null
@@ -147,7 +144,19 @@ class ReminderCommand(
             return null
         }
 
-        return time to timeXmessage[1]
+        val message =
+            if (timeXmessage.size != 2) {
+                if (config.defaultMessage.isNullOrBlank()) {
+                    matrixBot.room().sendMessage(roomId) { text("Message not found. Please use commands like '!${config.prefix} 09:00 Time to Work!'") }
+                    return null
+                } else {
+                    config.defaultMessage
+                }
+            } else {
+                timeXmessage[1]
+            }
+
+        return time to message
     }
 
     private fun createReminderMessage(
